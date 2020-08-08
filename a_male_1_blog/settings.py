@@ -37,6 +37,8 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'django.contrib.sites',
+    'django.contrib.sitemaps',
 
     'taggit',
 
@@ -134,3 +136,5 @@ EMAIL_HOST_USER = 'yout_account@gmail.com'
 EMAIL_PASSWORD = 'password'
 EMAIL_POR = 587
 EMAIL_USE_TSL = True
+
+SITE_ID = 1
