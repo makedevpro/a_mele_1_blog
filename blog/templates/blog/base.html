@@ -8,6 +8,8 @@
 </head>
 <body>
     <div id="content">
+        <p><a href="{% url 'blog:post_list' %}">Function-View</a></p>
+        <p><a href="{% url 'blog:post_list_cbv' %}">Class-Base-View</a></p>
         {% block content %}{% endblock %}
     </div>
     <div id="sidebar">
