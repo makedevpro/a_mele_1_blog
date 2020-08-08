@@ -1,3 +1,5 @@
+from django.contrib.postgres.search import SearchVector, SearchQuery, \
+    SearchRank, TrigramSimilarity
 from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
 from django.core.mail import send_mail
 from django.db.models import Count
@@ -7,7 +9,7 @@ from django.shortcuts import render, get_object_or_404
 from taggit.models import Tag
 
 from .models import Post, Comment
-from .forms import EmailPostForm, CommentForm
+from .forms import EmailPostForm, CommentForm, SearchForm
 
 
 def post_list(request, tag_slug=None):
@@ -115,3 +117,116 @@ def post_share(request, post_id):
                                                     'form': form,
                                                     'sent': sent})
 
+
+def post_search(request):
+    form = SearchForm()
+    query = None
+    results = []
+    if 'query' in request.GET:
+        form = SearchForm(request.GET)
+        if form.is_valid():
+            query = form.cleaned_data['query']
+            # Мы можем повысить значимость некоторых векторов, чтобы
+            # совпадения по ним считались более релевантными, чем по
+            # остальным. Например, можно на- строить поиск так, чтобы статьи с
+            # совпадениями в заголовке были в большем приоритете перед статьями
+            # с совпадениями в содержимом.
+            # search_vector = SearchVector('title', 'body')
+            search_vector = SearchVector('title', weight='A') + \
+                            SearchVector('body', weight='B')
+            search_query = SearchQuery(query)
+            results = Post.objects.annotate(
+                # search=search_vector,
+                # rank=SearchRank(search_vector, search_query))\
+                # ПОиск с помощью триграмм
+                similarity=TrigramSimilarity('title', query))\
+                .filter(similarity__gte=0.3).order_by('-similarity')
+                # .filter(rank__gte=0.3).order_by('-rank')
+                # .filter(search=search_query).order_by('-rank')
+    return render(request, 'blog/post/search.html', {'form': form,
+                                                     'query': query,
+                                                     'results': results})
+
+
+def post_search_simple(request):
+    """ Поиск """
+    form = SearchForm()
+    query = None
+    results = []
+    if 'query' in request.GET:
+        form = SearchForm(request.GET)
+        if form.is_valid():
+            query = form.cleaned_data['query']
+            results = Post.objects.annotate(
+                search=SearchVector('title', 'body'),)\
+                .filter(search=query)
+    return render(request, 'blog/post/search.html', {'form': form,
+                                                     'query': query,
+                                                     'results': results})
+
+
+def post_search_rank(request):
+    """ Стемминг и ранжирование результатов """
+    form = SearchForm()
+    query = None
+    results = []
+    if 'query' in request.GET:
+        form = SearchForm(request.GET)
+        if form.is_valid():
+            query = form.cleaned_data['query']
+            search_vector = SearchVector('title', 'body')
+            search_query = SearchQuery(query)
+            results = Post.objects.annotate(
+                search=search_vector,
+                rank=SearchRank(search_vector, search_query))\
+                .filter(search=search_query).order_by('-rank')
+    return render(request, 'blog/post/search.html', {'form': form,
+                                                     'query': query,
+                                                     'results': results})
+
+
+def post_search_weight(request):
+    form = SearchForm()
+    query = None
+    results = []
+    if 'query' in request.GET:
+        form = SearchForm(request.GET)
+        if form.is_valid():
+            query = form.cleaned_data['query']
+            # Мы можем повысить значимость некоторых векторов, чтобы
+            # совпадения по ним считались более релевантными, чем по
+            # остальным. Например, можно на- строить поиск так, чтобы статьи с
+            # совпадениями в заголовке были в большем приоритете перед статьями
+            # с совпадениями в содержимом.
+            search_vector = SearchVector('title', weight='A') + \
+                            SearchVector('body', weight='B')
+            search_query = SearchQuery(query)
+            results = Post.objects.annotate(
+                search=search_vector,
+                rank=SearchRank(search_vector, search_query))\
+                .filter(rank__gte=0.3).order_by('-rank')
+            # В этом примере мы применяем векторы по полям title и body с
+            # разным ве- сом. По умолчанию используются веса D, C, B и A,
+            # которые соответствуют числам 0.1, 0.2, 0.4 и 1. Мы применили
+            # вес 1.0 для вектора по полю title и 0.4 – для век- тора по полю
+            # body. В конце отбрасываем статьи с низким рангом и показываем
+            # только те, чей ранг выше 0.3.
+    return render(request, 'blog/post/search.html', {'form': form,
+                                                     'query': query,
+                                                     'results': results})
+
+
+def post_search_trigram_similarity(request):
+    form = SearchForm()
+    query = None
+    results = []
+    if 'query' in request.GET:
+        form = SearchForm(request.GET)
+        if form.is_valid():
+            query = form.cleaned_data['query']
+            results = Post.objects.annotate(
+                similarity=TrigramSimilarity('title', query))\
+                .filter(similarity__gte=0.3).order_by('-similarity')
+    return render(request, 'blog/post/search.html', {'form': form,
+                                                     'query': query,
+                                                     'results': results})
