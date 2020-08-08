@@ -3,14 +3,20 @@ from django.core.mail import send_mail
 from django.views.generic import ListView
 from django.shortcuts import render, get_object_or_404
 
+from taggit.models import Tag
 
 from .models import Post, Comment
 from .forms import EmailPostForm, CommentForm
 
 
-def post_list(request):
+def post_list(request, tag_slug=None):
     """ Выводим все опубликованные статьи. """
     object_list = Post.published.all()
+    tag = None
+    if tag_slug:
+        tag = get_object_or_404(Tag, slug=tag_slug)
+        object_list = object_list.filter(tags__in=[tag])
+
     paginator = Paginator(object_list, 3)  # По 3 статьи на каждой странице
     page = request.GET.get('page')
     try:
@@ -23,7 +29,8 @@ def post_list(request):
         # возвращаем последнюю страницу.
         posts = paginator.page(paginator.num_pages)
     return render(request, 'blog/post/list.html', {'page': page,
-                                                   'posts': posts})
+                                                   'posts': posts,
+                                                   'tag': tag})
 
 
 def post_detail(request, year, month, day, post):
